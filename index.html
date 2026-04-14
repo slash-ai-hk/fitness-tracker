@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健身追蹤器 Fitness Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 基本樣式 */
+    * { box-sizing: border-box; }
+    body { background-color: #0f172a; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', sans-serif; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
+    select option { background-color: #1e293b; }
+    .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
+    .card-title { color: #f97316; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .input-field { width: 100%; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; color: white; background-color: #334155; border: 1px solid #475569; }
+    .input-field:focus { outline: none; border-color: #f97316; }
+    .btn-primary { background-color: #f97316; color: white; border-radius: 0.75rem; padding: 0.75rem; font-weight: 700; width: 100%; cursor: pointer; border: none; }
+    .btn-primary:active { background-color: #ea580c; }
+    .btn-secondary { background-color: #334155; color: #94a3b8; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; cursor: pointer; border: none; }
+    .label { color: #94a3b8; font-size: 0.75rem; font-weight: 600; display: block; margin-bottom: 0.25rem; }
+    canvas { max-width: 100%; display: block; }
+  </style>
+</head>
+<body>
+
+<div id="app" style="max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background-color:#0f172a;">
+
+  <!-- 頂部標題 Header -->
+  <header style="background-color:#1e293b; border-bottom:1px solid #334155; padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+    <h1 style="color:#f97316; font-size:1.125rem; font-weight:700; margin:0;">💪 健身追蹤器</h1>
+    <span id="header-date" style="color:#94a3b8; font-size:0.875rem;"></span>
+  </header>
+
+  <!-- 主要內容 Main Content -->
+  <main style="flex:1; overflow-y:auto; padding:1rem; padding-bottom:5rem;">
+    <div id="tab-dashboard" class="tab-content active"></div>
+    <div id="tab-plan" class="tab-content"></div>
+    <div id="tab-log" class="tab-content"></div>
+    <div id="tab-profile" class="tab-content"></div>
+  </main>
+
+  <!-- 底部導航 Bottom Nav -->
+  <nav style="background-color:#1e293b; border-top:1px solid #334155; position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; display:flex; justify-content:space-around; padding:0.5rem 0; z-index:10;">
+    <button onclick="switchTab('dashboard')" id="nav-dashboard" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
+      <span style="font-size:1.25rem;">🏠</span><span>儀表板</span>
+    </button>
+    <button onclick="switchTab('plan')" id="nav-plan" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
+      <span style="font-size:1.25rem;">📋</span><span>計畫</span>
+    </button>
+    <button onclick="switchTab('log')" id="nav-log" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
+      <span style="font-size:1.25rem;">📝</span><span>記錄</span>
+    </button>
+    <button onclick="switchTab('profile')" id="nav-profile" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
+      <span style="font-size:1.25rem;">👤</span><span>資料</span>
+    </button>
+  </nav>
+
+</div>
+
+<script>
+// =============================================
+// 資料初始化 Data Init
+// =============================================
+const DEFAULTS = {
+  profile: { name:'', age:'', gender:'male', height:'', weight:'', bodyFat:'', goalWeight:'', activityLevel:'moderate', fitnessGoal:'lose_fat' },
+  workoutPlan: null,
+  workoutLogs: [],  // [{date, exercises:[{name,sets:[{weight,reps,notes}]}], caloriesBurned, duration}]
+  weightLogs: [],   // [{date, weight}]
+  waterLogs: {},    // {date: count}
+  currentTab: 'dashboard'
+};
+
+function loadData() {
+  try { const s = localStorage.getItem('ft_v1'); if (s) return Object.assign({}, DEFAULTS, JSON.parse(s)); } catch(e) {}
+  return Object.assign({}, DEFAULTS);
+}
+function saveData() { localStorage.setItem('ft_v1', JSON.stringify(app)); }
+
+let app = loadData();
+
+// 暫存當前記錄的組數
+let _sets = [{ weight:'', reps:'', notes:'' }];
+
+// =============================================
+// 工具函數 Utilities
+// =============================================
+function today() { return new Date().toISOString().split('T')[0]; }
+
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function getWeekDates() {
+  const d = new Date(); const dow = d.getDay();
+  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return Array.from({length:7}, (_,i) => { const x = new Date(mon); x.setDate(mon.getDate()+i); return x.toISOString().split('T')[0]; });
+}
+
+// =============================================
+// 健康計算 Health Calculations
+// =============================================
+function calcBMR(p) {
+  if (!p.weight || !p.height || !p.age) return 0;
+  const w=parseFloat(p.weight), h=parseFloat(p.height), a=parseInt(p.age);
+  return Math.round(p.gender==='male' ? 10*w+6.25*h-5*a+5 : 10*w+6.25*h-5*a-161);
+}
+
+const ACT = { sedentary:1.2, light:1.375, moderate:1.55, active:1.725 };
+
+function calcTDEE(p) { return Math.round(calcBMR(p) * (ACT[p.activityLevel]||1.55)); }
+
+function calcTarget(p) {
+  const t = calcTDEE(p); if (!t) return 0;
+  return t + (p.fitnessGoal==='build_muscle' ? 300 : p.fitnessGoal==='maintain' ? 0 : -500);
+}
+
+function calcWeeks(p) {
+  const c=parseFloat(p.weight), g=parseFloat(p.goalWeight);
+  if (!c||!g) return null;
+  return Math.round(Math.abs(c-g) / (p.fitnessGoal==='build_muscle' ? 0.25 : 0.5));
+}
+
+// =============================================
+// 運動資料庫 Exercise Database
+// =============================================
+const EX = {
+  chest:    [{n:'臥推 Bench Press',met:5},{n:'上斜臥推 Incline Press',met:5},{n:'啞鈴飛鳥 DB Fly',met:5},{n:'伏地挺身 Push-up',met:8,bw:true},{n:'雙槓撐體 Dips',met:7,bw:true}],
+  back:     [{n:'引體向上 Pull-up',met:8,bw:true},{n:'槓鈴划船 BB Row',met:5},{n:'坐姿划船 Seated Row',met:5},{n:'硬舉 Deadlift',met:6},{n:'滑輪下拉 Lat Pulldown',met:5}],
+  legs:     [{n:'深蹲 Squat',met:6},{n:'腿推 Leg Press',met:5},{n:'弓步 Lunges',met:5},{n:'腿彎舉 Leg Curl',met:5},{n:'羅馬尼亞硬舉 RDL',met:5},{n:'小腿提踵 Calf Raise',met:4}],
+  shoulders:[{n:'肩推 Shoulder Press',met:5},{n:'側平舉 Lateral Raise',met:4},{n:'前平舉 Front Raise',met:4},{n:'面拉 Face Pull',met:4},{n:'啞鈴肩推 DB Press',met:5}],
+  arms:     [{n:'二頭彎舉 Bicep Curl',met:4},{n:'鎚式彎舉 Hammer Curl',met:4},{n:'集中彎舉 Concentration Curl',met:4},{n:'繩索下壓 Tricep Pushdown',met:4},{n:'三頭撐體 Tricep Dip',met:5,bw:true}],
+  core:     [{n:'捲腹 Crunch',met:4,bw:true},{n:'棒式 Plank',met:4,bw:true},{n:'俄羅斯轉體 Russian Twist',met:4,bw:true},{n:'腿舉 Leg Raise',met:4,bw:true},{n:'登山式 Mountain Climber',met:8,bw:true}],
+  cardio:   [{n:'慢跑 Jogging',met:7,bw:true},{n:'跳繩 Jump Rope',met:12,bw:true},{n:'HIIT訓練 HIIT',met:10,bw:true},{n:'騎腳踏車 Cycling',met:8,bw:true},{n:'快走 Brisk Walk',met:5,bw:true}]
+};
+
+function pickEx(muscle, count) {
+  const pool = [...(EX[muscle]||EX.core)].sort(()=>Math.random()-0.5);
+  return pool.slice(0, count).map(e => ({ name:e.n, met:e.met, bw:!!e.bw, sets:3, reps:muscle==='cardio'?20:12, weight:e.bw?0:20 }));
+}
+
+// =============================================
+// 訓練計畫生成 Plan Generator
+// =============================================
+const PLAN_TEMPLATES = {
+  lose_fat: [
+    {day:'週一 Mon', focus:'全身訓練 Full Body', muscles:[['chest',2],['back',2],['legs',2]], rest:false},
+    {day:'週二 Tue', focus:'有氧 Cardio', muscles:[['cardio',4]], rest:false},
+    {day:'週三 Wed', focus:'上肢 Upper Body', muscles:[['chest',2],['back',2],['arms',2]], rest:false},
+    {day:'週四 Thu', focus:'休息 Rest Day', muscles:[], rest:true},
+    {day:'週五 Fri', focus:'下肢+核心 Lower+Core', muscles:[['legs',3],['core',2]], rest:false},
+    {day:'週六 Sat', focus:'有氧+核心 Cardio+Core', muscles:[['cardio',3],['core',2]], rest:false},
+    {day:'週日 Sun', focus:'休息 Rest Day', muscles:[], rest:true}
+  ],
+  build_muscle: [
+    {day:'週一 Mon', focus:'胸+三頭 Chest+Tri', muscles:[['chest',3],['arms',2]], rest:false},
+    {day:'週二 Tue', focus:'背+二頭 Back+Bi', muscles:[['back',3],['arms',2]], rest:false},
+    {day:'週三 Wed', focus:'腿 Legs', muscles:[['legs',5]], rest:false},
+    {day:'週四 Thu', focus:'休息 Rest Day', muscles:[], rest:true},
+    {day:'週五 Fri', focus:'肩+核心 Shoulders+Core', muscles:[['shoulders',3],['core',2]], rest:false},
+    {day:'週六 Sat', focus:'全身 Full Body', muscles:[['chest',2],['back',2],['legs',2]], rest:false},
+    {day:'週日 Sun', focus:'休息 Rest Day', muscles:[], rest:true}
+  ],
+  maintain: [
+    {day:'週一 Mon', focus:'上肢 Upper Body', muscles:[['chest',2],['back',2],['shoulders',1]], rest:false},
+    {day:'週二 Tue', focus:'下肢 Lower Body', muscles:[['legs',5]], rest:false},
+    {day:'週三 Wed', focus:'休息 Rest Day', muscles:[], rest:true},
+    {day:'週四 Thu', focus:'手臂+核心 Arms+Core', muscles:[['arms',3],['core',2]], rest:false},
+    {day:'週五 Fri', focus:'有氧+核心 Cardio+Core', muscles:[['cardio',3],['core',2]], rest:false},
+    {day:'週六 Sat', focus:'全身 Full Body', muscles:[['chest',2],['back',2],['legs',2]], rest:false},
+    {day:'週日 Sun', focus:'休息 Rest Day', muscles:[], rest:true}
+  ]
+};
+
+function generatePlan(goal) {
+  const tmpl = PLAN_TEMPLATES[goal] || PLAN_TEMPLATES.lose_fat;
+  return tmpl.map(d => ({
+    day: d.day, focus: d.focus, rest: d.rest,
+    exercises: d.rest ? [] : d.muscles.flatMap(([m, cnt]) => pickEx(m, cnt))
+  }));
+}
+
+// =============================================
+// 導航切換 Tab Navigation
+// =============================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.style.color = '#94a3b8');
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('nav-' + name).style.color = '#f97316';
+  app.currentTab = name;
+  if (name==='dashboard') renderDashboard();
+  else if (name==='plan') renderPlan();
+  else if (name==='log') renderLog();
+  else if (name==='profile') renderProfile();
+}
+
+// =============================================
+// 儀表板 Dashboard
+// =============================================
+function renderDashboard() {
+  const p = app.profile;
+  const t = today();
+  const target = calcTarget(p);
+  const todayLog = app.workoutLogs.find(l => l.date === t);
+  const burned = todayLog ? (todayLog.caloriesBurned||0) : 0;
+  const net = target ? target - burned : 0;
+  const water = app.waterLogs[t] || 0;
+  const lastW = app.weightLogs.length ? app.weightLogs[app.weightLogs.length-1].weight : (p.weight||'--');
+  const wkDates = getWeekDates();
+  const streak = wkDates.filter(d => app.workoutLogs.some(l => l.date===d && l.exercises.length>0)).length;
+
+  document.getElementById('tab-dashboard').innerHTML = `
+    <div style="margin-bottom:1rem;">
+      <h2 style="font-size:1.25rem;font-weight:700;color:white;margin:0 0 2px;">${p.name ? '嗨，'+p.name+'！👋' : '歡迎回來！'}</h2>
+      <p style="color:#94a3b8;font-size:0.875rem;margin:0;">${new Date().toLocaleDateString('zh-TW',{weekday:'long',month:'long',day:'numeric'})}</p>
+    </div>
+
+    <!-- 今日摘要 -->
+    <div class="card">
+      <div class="card-title">📊 今日摘要 Today's Summary</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:0.75rem;">
+        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
+          <div style="font-size:1.5rem;font-weight:700;color:white;">${target||'--'}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">目標熱量<br>kcal target</div>
+        </div>
+        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
+          <div style="font-size:1.5rem;font-weight:700;color:#f97316;">${burned}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">已燃燒<br>burned</div>
+        </div>
+        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
+          <div style="font-size:1.5rem;font-weight:700;color:${net>=0?'#4ade80':'#f87171'}">${target?net:'--'}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">淨剩餘<br>remaining</div>
+        </div>
+      </div>
+      ${target ? `
+      <div style="margin-top:0.5rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#94a3b8;margin-bottom:4px;">
+          <span>燃燒進度</span><span>${Math.round(Math.min(burned/target*100,100))}%</span>
+        </div>
+        <div style="height:8px;background:#334155;border-radius:4px;">
+          <div style="height:8px;background:#f97316;border-radius:4px;width:${Math.min(burned/target*100,100)}%;transition:width 0.3s;"></div>
+        </div>
+      </div>` : `<p style="color:#64748b;font-size:0.75rem;text-align:center;">請先在「資料」頁設定個人資料</p>`}
+    </div>
+
+    <!-- 飲水追蹤 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div class="card-title" style="margin:0;">💧 今日飲水 Water Intake</div>
+        <span style="color:white;font-weight:700;font-size:0.875rem;">${water}/8 杯</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem;">
+        ${Array.from({length:8},(_,i)=>`
+          <div style="width:2rem;height:2rem;border-radius:50%;background:${i<water?'#0ea5e9':'#334155'};display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;" onclick="${i<water?'rmWater()':'addWater()'}">💧</div>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <button onclick="addWater()" style="flex:1;padding:0.5rem;background:#0ea5e9;color:white;border:none;border-radius:0.5rem;font-size:0.875rem;cursor:pointer;">+ 加一杯</button>
+        <button onclick="rmWater()" style="flex:1;padding:0.5rem;background:#334155;color:#94a3b8;border:none;border-radius:0.5rem;font-size:0.875rem;cursor:pointer;">− 減一杯</button>
+      </div>
+    </div>
+
+    <!-- 本週連續 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div class="card-title" style="margin:0;">🔥 本週訓練 Weekly Streak</div>
+        <span style="color:#f97316;font-weight:700;">${streak}/7天</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        ${['一','二','三','四','五','六','日'].map((d,i) => {
+          const dt = wkDates[i];
+          const done = app.workoutLogs.some(l => l.date===dt && l.exercises.length>0);
+          const isTd = dt===today();
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:2rem;height:2rem;border-radius:50%;background:${done?'#f97316':'#334155'};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:${done?'white':'#64748b'};${isTd?'box-shadow:0 0 0 2px #f97316;':''}">
+              ${done?'✓':d}
+            </div>
+            <span style="font-size:0.6rem;color:#64748b;">${d}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- 體重快速記錄 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div class="card-title" style="margin:0;">⚖️ 體重記錄 Weight Log</div>
+        <span style="color:white;font-weight:700;font-size:0.875rem;">${lastW} kg</span>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <input type="number" id="qw" placeholder="今日體重 kg" step="0.1" class="input-field" style="flex:1;">
+        <button onclick="quickWeight()" style="padding:0.5rem 1rem;background:#f97316;color:white;border:none;border-radius:0.5rem;font-weight:700;cursor:pointer;">記錄</button>
+      </div>
+    </div>
+
+    <!-- 體重趨勢圖 -->
+    ${app.weightLogs.length >= 2 ? `
+    <div class="card">
+      <div class="card-title">📈 體重趨勢 Weight Trend</div>
+      <canvas id="wChart" height="150"></canvas>
+    </div>` : ''}
+  `;
+
+  if (app.weightLogs.length >= 2) drawLineChart('wChart', app.weightLogs.slice(-30), 'weight', '#f97316', 'kg');
+}
+
+function addWater() { const t=today(); app.waterLogs[t]=Math.min((app.waterLogs[t]||0)+1,15); saveData(); renderDashboard(); }
+function rmWater()  { const t=today(); app.waterLogs[t]=Math.max((app.waterLogs[t]||0)-1,0); saveData(); renderDashboard(); }
+
+function quickWeight() {
+  const v = parseFloat(document.getElementById('qw').value);
+  if (!v||v<20||v>300) { alert('請輸入有效體重（20-300 kg）'); return; }
+  const t = today();
+  const idx = app.weightLogs.findIndex(l=>l.date===t);
+  if (idx>=0) app.weightLogs[idx].weight=v; else app.weightLogs.push({date:t,weight:v});
+  saveData(); renderDashboard();
+}
+
+// =============================================
+// 折線圖 Line Chart (Canvas)
+// =============================================
+function drawLineChart(canvasId, data, field, color, unit) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || data.length < 2) return;
+  const W = canvas.parentElement.clientWidth - 32 || 300;
+  canvas.width = W; canvas.height = 150;
+  const ctx = canvas.getContext('2d');
+
+  const vals = data.map(d => d[field]);
+  const minV = Math.min(...vals) - 1, maxV = Math.max(...vals) + 1;
+  const pad = {t:10,r:15,b:25,l:42};
+  const cW = W-pad.l-pad.r, cH = 150-pad.t-pad.b;
+
+  ctx.clearRect(0,0,W,150);
+
+  // 格線 + Y軸標籤
+  ctx.strokeStyle='#334155'; ctx.lineWidth=0.5;
+  for (let i=0;i<=4;i++) {
+    const y = pad.t+(i/4)*cH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.fillStyle='#94a3b8'; ctx.font='10px sans-serif'; ctx.textAlign='right';
+    ctx.fillText((maxV-(i/4)*(maxV-minV)).toFixed(1), pad.l-4, y+3);
+  }
+
+  // 折線
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+  data.forEach((d,i) => {
+    const x=pad.l+(i/(data.length-1))*cW, y=pad.t+((maxV-d[field])/(maxV-minV))*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // 數據點
+  data.forEach((d,i) => {
+    const x=pad.l+(i/(data.length-1))*cW, y=pad.t+((maxV-d[field])/(maxV-minV))*cH;
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+  });
+
+  // X軸首末標籤
+  ctx.fillStyle='#94a3b8'; ctx.font='9px sans-serif';
+  ctx.textAlign='center'; ctx.fillText(fmtDate(data[0].date), pad.l, 148);
+  ctx.textAlign='center'; ctx.fillText(fmtDate(data[data.length-1].date), W-pad.r, 148);
+}
+
+// =============================================
+// 訓練計畫 Plan
+// =============================================
+function renderPlan() {
+  const el = document.getElementById('tab-plan');
+  if (!app.workoutPlan) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:3rem 1rem;">
+        <div style="font-size:4rem;margin-bottom:1rem;">📋</div>
+        <h2 style="color:white;margin-bottom:0.5rem;">尚未生成訓練計畫</h2>
+        <p style="color:#94a3b8;font-size:0.875rem;margin-bottom:1.5rem;">請先至「資料」設定個人資料</p>
+        <button onclick="switchTab('profile')" class="btn-primary" style="width:auto;padding:0.75rem 2rem;">前往設定 →</button>
+      </div>`;
+    return;
+  }
+  const goalLabel = {lose_fat:'🔥 減脂',build_muscle:'💪 增肌',maintain:'⚖️ 維持'};
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div>
+        <h2 style="color:white;font-weight:700;font-size:1.125rem;margin:0;">本週訓練計畫</h2>
+        <p style="color:#94a3b8;font-size:0.75rem;margin:0;">目標：${goalLabel[app.profile.fitnessGoal]||''}</p>
+      </div>
+      <button onclick="regenPlan()" style="background:#f97316;color:white;border:none;border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;">🔄 重新生成</button>
+    </div>
+    <div>
+      ${app.workoutPlan.map((day, di) => renderPlanDay(day, di)).join('')}
+    </div>`;
+}
+
+function renderPlanDay(day, di) {
+  const dow = new Date().getDay(); // 0=Sun
+  const todayIdx = dow === 0 ? 6 : dow - 1; // Mon=0
+  const isTd = di === todayIdx;
+
+  if (day.rest) return `
+    <div style="background:#1e293b;border:1px solid ${isTd?'#f97316':'#334155'};border-radius:0.75rem;padding:0.75rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.75rem;">
+      <span style="font-size:1.5rem;">😴</span>
+      <div style="flex:1;">
+        <div style="color:white;font-weight:600;">${day.day}</div>
+        <div style="color:#64748b;font-size:0.75rem;">${day.focus}</div>
+      </div>
+      ${isTd?'<span style="background:#f97316;color:white;font-size:0.7rem;padding:2px 8px;border-radius:999px;">今天</span>':''}
+    </div>`;
+
+  return `
+    <div style="background:#1e293b;border:1px solid ${isTd?'#f97316':'#334155'};border-radius:0.75rem;margin-bottom:0.75rem;overflow:hidden;">
+      <div style="padding:0.75rem 1rem;display:flex;align-items:center;cursor:pointer;" onclick="toggleDay(${di})">
+        <span style="font-size:1.5rem;margin-right:0.75rem;">💪</span>
+        <div style="flex:1;">
+          <div style="color:white;font-weight:600;">${day.day}</div>
+          <div style="color:#f97316;font-size:0.75rem;">${day.focus}</div>
+        </div>
+        ${isTd?'<span style="background:#f97316;color:white;font-size:0.7rem;padding:2px 8px;border-radius:999px;margin-right:0.5rem;">今天</span>':''}
+        <span id="arr${di}" style="color:#94a3b8;transition:transform 0.2s;${isTd?'transform:rotate(180deg)':''}">▼</span>
+      </div>
+      <div id="pd${di}" style="${isTd?'':'display:none;'}padding:0 1rem 0.75rem;">
+        ${day.exercises.map(ex => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-top:1px solid #334155;">
+            <div>
+              <div style="color:white;font-size:0.875rem;font-weight:500;">${ex.name}</div>
+              <div style="color:#94a3b8;font-size:0.7rem;">${ex.sets}組 × ${ex.reps}${ex.bw?'下（自重）':'下 · '+ex.weight+'kg'}</div>
+            </div>
+            ${isTd?`<button onclick="preloadEx('${ex.name.replace(/'/g,"\\'")}',${ex.weight})" style="background:#475569;color:white;border:none;border-radius:0.375rem;padding:4px 8px;font-size:0.7rem;cursor:pointer;">記錄</button>`:''}
+          </div>`).join('')}
+        ${isTd?`<button onclick="switchTab('log')" style="width:100%;margin-top:0.5rem;padding:0.5rem;background:#f97316;color:white;border:none;border-radius:0.5rem;font-weight:700;cursor:pointer;">📝 開始記錄今日訓練</button>`:''}
+      </div>
+    </div>`;
+}
+
+function toggleDay(di) {
+  const el = document.getElementById('pd'+di), ar = document.getElementById('arr'+di);
+  if (el.style.display==='none') { el.style.display='block'; if(ar) ar.style.transform='rotate(180deg)'; }
+  else { el.style.display='none'; if(ar) ar.style.transform=''; }
+}
+
+function regenPlan() {
+  if (confirm('確定重新生成訓練計畫？')) {
+    app.workoutPlan = generatePlan(app.profile.fitnessGoal||'lose_fat');
+    saveData(); renderPlan();
+  }
+}
+
+function preloadEx(name, weight) {
+  _sets = [{weight: weight||'', reps:'', notes:''}];
+  window._preloadName = name;
+  switchTab('log');
+}
+
+// =============================================
+// 運動記錄 Log
+// =============================================
+function renderLog() {
+  const t = today();
+  const todayLog = app.workoutLogs.find(l => l.date===t);
+  const allNames = Object.values(EX).flat().map(e => e.n);
+  const loggedNames = getLoggedExNames();
+  const preload = window._preloadName || '';
+  if (preload) window._preloadName = '';
+
+  document.getElementById('tab-log').innerHTML = `
+    <!-- 記錄新運動 -->
+    <div class="card">
+      <div class="card-title">📝 記錄訓練 Log Workout</div>
+      <div style="margin-bottom:0.75rem;">
+        <label class="label">運動名稱 Exercise</label>
+        <input type="text" id="exName" list="exList" placeholder="輸入或選擇運動..." value="${preload}" class="input-field">
+        <datalist id="exList">${allNames.map(n=>`<option value="${n}">`).join('')}</datalist>
+      </div>
+      <div id="setsWrap" style="margin-bottom:0.75rem;"></div>
+      <div style="display:flex;gap:0.5rem;">
+        <button onclick="addSet()" class="btn-secondary" style="flex:1;">+ 加一組</button>
+        <button onclick="saveEx()" class="btn-primary" style="flex:1;padding:0.5rem;">💾 儲存運動</button>
+      </div>
+    </div>
+
+    <!-- 今日已記錄 -->
+    ${todayLog && todayLog.exercises.length ? `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div class="card-title" style="margin:0;">✅ 今日完成 Done Today</div>
+        <span style="color:#f97316;font-size:0.875rem;">🔥 ${todayLog.caloriesBurned||0} kcal</span>
+      </div>
+      ${todayLog.exercises.map((ex,i) => `
+        <div style="margin-bottom:0.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="color:white;font-size:0.875rem;font-weight:600;">${ex.name}</span>
+            <button onclick="delEx(${i})" style="color:#f87171;background:none;border:none;cursor:pointer;font-size:0.75rem;">✕ 刪除</button>
+          </div>
+          ${ex.sets.map(s=>`
+            <div style="display:flex;gap:0.5rem;font-size:0.75rem;color:#94a3b8;background:#334155;border-radius:0.375rem;padding:4px 8px;margin-bottom:3px;">
+              <span>${s.weight?s.weight+'kg':'自重'} × ${s.reps}下</span>
+              ${s.notes?`<span style="color:#64748b;">· ${s.notes}</span>`:''}
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>` : ''}
+
+    <!-- 歷史記錄 -->
+    <div class="card">
+      <div class="card-title">📅 訓練歷史 History (近30天)</div>
+      ${renderHistory()}
+    </div>
+
+    <!-- 進步追蹤 -->
+    <div class="card">
+      <div class="card-title">📈 進步追蹤 Progress Chart</div>
+      ${loggedNames.length ? `
+      <select id="exSel" onchange="drawExChart()" class="input-field" style="margin-bottom:0.75rem;">
+        <option value="">選擇運動 Select exercise...</option>
+        ${loggedNames.map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+      <canvas id="exChart" height="150"></canvas>` : `<p style="color:#64748b;font-size:0.875rem;text-align:center;">尚無足夠數據</p>`}
+    </div>
+  `;
+
+  renderSets();
+}
+
+function renderSets() {
+  const el = document.getElementById('setsWrap');
+  if (!el) return;
+  el.innerHTML = _sets.map((s,i) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+      <span style="color:#64748b;font-size:0.75rem;min-width:1.25rem;text-align:center;">${i+1}</span>
+      <input type="number" placeholder="重量(kg)" value="${s.weight}" onchange="_sets[${i}].weight=this.value" class="input-field" style="flex:1;text-align:center;">
+      <input type="number" placeholder="次數" value="${s.reps}" onchange="_sets[${i}].reps=this.value" class="input-field" style="flex:1;text-align:center;">
+      <input type="text" placeholder="備註" value="${s.notes||''}" onchange="_sets[${i}].notes=this.value" class="input-field" style="flex:1.5;">
+      ${_sets.length>1?`<button onclick="_sets.splice(${i},1);renderSets()" style="color:#f87171;background:none;border:none;cursor:pointer;padding:0 4px;">✕</button>`:'<div style="width:20px;"></div>'}
+    </div>`).join('');
+}
+
+function addSet() { _sets.push({weight:'',reps:'',notes:''}); renderSets(); }
+
+function saveEx() {
+  const name = document.getElementById('exName').value.trim();
+  if (!name) { alert('請輸入運動名稱'); return; }
+  const valid = _sets.filter(s => s.reps!=='');
+  if (!valid.length) { alert('請至少輸入一組的次數'); return; }
+  const t = today();
+  let lg = app.workoutLogs.find(l=>l.date===t);
+  if (!lg) { lg = {date:t, exercises:[], caloriesBurned:0, duration:0}; app.workoutLogs.push(lg); }
+  const exDb = Object.values(EX).flat();
+  const info = exDb.find(e=>e.n===name)||{met:5};
+  const bw = parseFloat(app.profile.weight)||70;
+  const mins = valid.length * 2;
+  const cal = Math.round(info.met * bw * mins / 60);
+  const existing = lg.exercises.find(e=>e.name===name);
+  if (existing) existing.sets.push(...valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''})));
+  else lg.exercises.push({name, sets: valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''}))});
+  lg.caloriesBurned = (lg.caloriesBurned||0) + cal;
+  lg.duration = (lg.duration||0) + mins;
+  saveData();
+  _sets = [{weight:'',reps:'',notes:''}];
+  renderLog();
+}
+
+function delEx(i) {
+  const t = today();
+  const lg = app.workoutLogs.find(l=>l.date===t);
+  if (!lg) return;
+  lg.exercises.splice(i,1);
+  if (!lg.exercises.length) app.workoutLogs = app.workoutLogs.filter(l=>l.date!==t);
+  saveData(); renderLog();
+}
+
+function renderHistory() {
+  const recent = [...app.workoutLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  if (!recent.length) return '<p style="color:#64748b;font-size:0.875rem;text-align:center;">尚無記錄</p>';
+  return recent.map(l => `
+    <div style="background:#334155;border-radius:0.5rem;padding:0.5rem 0.75rem;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+        <span style="color:white;font-size:0.8rem;font-weight:600;">${l.date}${l.date===today()?' (今天)':''}</span>
+        <span style="color:#f97316;font-size:0.75rem;">🔥 ${l.caloriesBurned||0} kcal</span>
+      </div>
+      <div style="color:#94a3b8;font-size:0.7rem;">${l.exercises.map(e=>e.name.split(' ')[0]).join(' · ')}</div>
+    </div>`).join('');
+}
+
+function getLoggedExNames() {
+  const s = new Set();
+  app.workoutLogs.forEach(l => l.exercises.forEach(e => s.add(e.name)));
+  return [...s];
+}
+
+function drawExChart() {
+  const sel = document.getElementById('exSel');
+  if (!sel || !sel.value) return;
+  const name = sel.value;
+  const data = [];
+  [...app.workoutLogs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(l => {
+    const ex = l.exercises.find(e=>e.name===name);
+    if (ex && ex.sets.length) {
+      const maxW = Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));
+      if (maxW>0) data.push({date:l.date, weight:maxW});
+    }
+  });
+  if (data.length < 2) {
+    const c = document.getElementById('exChart');
+    if (!c) return;
+    c.width = c.parentElement.clientWidth-32||300; c.height=80;
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,80);
+    ctx.fillStyle='#94a3b8'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('需至少2筆數據才能顯示圖表',c.width/2,44);
+    return;
+  }
+  drawLineChart('exChart', data, 'weight', '#4ade80', 'kg');
+}
+
+// =============================================
+// 個人資料 Profile
+// =============================================
+function renderProfile() {
+  const p = app.profile;
+  const bmr=calcBMR(p), tdee=calcTDEE(p), target=calcTarget(p), wks=calcWeeks(p);
+
+  document.getElementById('tab-profile').innerHTML = `
+    <!-- 健康數據卡片 -->
+    ${bmr ? `
+    <div class="card" style="border-color:#f97316;">
+      <div class="card-title">🧮 健康計算結果 Health Stats</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;">
+        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
+          <div style="font-size:1.5rem;font-weight:700;color:white;">${bmr}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">BMR 基礎代謝率<br>kcal/day</div>
+        </div>
+        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
+          <div style="font-size:1.5rem;font-weight:700;color:white;">${tdee}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">TDEE 每日消耗<br>kcal/day</div>
+        </div>
+        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
+          <div style="font-size:1.5rem;font-weight:700;color:#f97316;">${target}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">目標熱量<br>kcal/day</div>
+        </div>
+        ${wks!==null?`
+        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
+          <div style="font-size:1.5rem;font-weight:700;color:#4ade80;">${wks}</div>
+          <div style="font-size:0.65rem;color:#94a3b8;">預估達標週數<br>weeks to goal</div>
+        </div>`:''}
+      </div>
+    </div>` : ''}
+
+    <!-- 資料表單 -->
+    <div class="card">
+      <div class="card-title">👤 個人資料 Profile Setup</div>
+
+      <div style="margin-bottom:0.75rem;">
+        <label class="label">姓名 Name</label>
+        <input type="text" id="pName" value="${p.name||''}" placeholder="你的名字..." class="input-field">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+        <div>
+          <label class="label">年齡 Age</label>
+          <input type="number" id="pAge" value="${p.age||''}" placeholder="歲" class="input-field">
+        </div>
+        <div>
+          <label class="label">性別 Gender</label>
+          <select id="pGender" class="input-field">
+            <option value="male" ${p.gender==='male'?'selected':''}>男 Male</option>
+            <option value="female" ${p.gender==='female'?'selected':''}>女 Female</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+        <div>
+          <label class="label">身高 Height (cm)</label>
+          <input type="number" id="pHeight" value="${p.height||''}" placeholder="cm" class="input-field">
+        </div>
+        <div>
+          <label class="label">體重 Weight (kg)</label>
+          <input type="number" id="pWeight" value="${p.weight||''}" placeholder="kg" step="0.1" class="input-field">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+        <div>
+          <label class="label">體脂率 Body Fat %</label>
+          <input type="number" id="pBF" value="${p.bodyFat||''}" placeholder="%" step="0.1" class="input-field">
+        </div>
+        <div>
+          <label class="label">目標體重 Goal (kg)</label>
+          <input type="number" id="pGoalW" value="${p.goalWeight||''}" placeholder="kg" step="0.1" class="input-field">
+        </div>
+      </div>
+
+      <div style="margin-bottom:0.75rem;">
+        <label class="label">活動量 Activity Level</label>
+        <select id="pActivity" class="input-field">
+          <option value="sedentary" ${p.activityLevel==='sedentary'?'selected':''}>久坐 Sedentary（辦公室、少動）</option>
+          <option value="light"    ${p.activityLevel==='light'   ?'selected':''}>輕度 Lightly Active（每週1-3天）</option>
+          <option value="moderate" ${p.activityLevel==='moderate'?'selected':''}>中度 Moderately Active（每週3-5天）</option>
+          <option value="active"   ${p.activityLevel==='active'  ?'selected':''}>高度 Very Active（每週6-7天）</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label class="label">健身目標 Fitness Goal</label>
+        <select id="pGoal" class="input-field">
+          <option value="lose_fat"     ${p.fitnessGoal==='lose_fat'     ?'selected':''}>🔥 減脂 Lose Fat（熱量赤字 −500 kcal）</option>
+          <option value="build_muscle" ${p.fitnessGoal==='build_muscle' ?'selected':''}>💪 增肌 Build Muscle（熱量盈餘 +300 kcal）</option>
+          <option value="maintain"     ${p.fitnessGoal==='maintain'     ?'selected':''}>⚖️ 維持 Maintain（TDEE 等量）</option>
+        </select>
+      </div>
+
+      <button onclick="saveProfile()" class="btn-primary" id="saveBtn">💾 儲存並計算 Save & Calculate</button>
+
+      <button onclick="clearData()" style="width:100%;padding:0.5rem;background:none;border:1px solid #334155;color:#64748b;border-radius:0.5rem;margin-top:0.75rem;cursor:pointer;font-size:0.8rem;">
+        🗑️ 清除所有資料 Clear All Data
+      </button>
+    </div>
+  `;
+}
+
+function saveProfile() {
+  const profile = {
+    name:          document.getElementById('pName').value.trim(),
+    age:           document.getElementById('pAge').value,
+    gender:        document.getElementById('pGender').value,
+    height:        document.getElementById('pHeight').value,
+    weight:        document.getElementById('pWeight').value,
+    bodyFat:       document.getElementById('pBF').value,
+    goalWeight:    document.getElementById('pGoalW').value,
+    activityLevel: document.getElementById('pActivity').value,
+    fitnessGoal:   document.getElementById('pGoal').value
+  };
+  if (!profile.age || !profile.height || !profile.weight) { alert('請填寫年齡、身高、體重'); return; }
+  app.profile = profile;
+  if (!app.workoutPlan) app.workoutPlan = generatePlan(profile.fitnessGoal);
+  saveData();
+  renderProfile();
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.textContent='✅ 已儲存！'; btn.style.background='#4ade80'; setTimeout(()=>{ btn.textContent='💾 儲存並計算 Save & Calculate'; btn.style.background='#f97316'; },2000); }
+}
+
+function clearData() {
+  if (confirm('確定清除所有資料？此操作無法復原。')) {
+    localStorage.removeItem('ft_v1');
+    app = Object.assign({}, DEFAULTS);
+    renderProfile();
+  }
+}
+
+// =============================================
+// 初始化 Init
+// =============================================
+function init() {
+  // 設置頁頭日期
+  const d = new Date();
+  document.getElementById('header-date').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+
+  // 啟動預設 tab
+  const start = app.currentTab || 'dashboard';
+  document.getElementById('nav-'+start).style.color = '#f97316';
+  document.getElementById('tab-'+start).classList.add('active');
+  if (start==='dashboard') renderDashboard();
+  else if (start==='plan') renderPlan();
+  else if (start==='log') renderLog();
+  else if (start==='profile') renderProfile();
+}
+
+init();
+</script>
+</body>
+</html>
