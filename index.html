@@ -270,6 +270,17 @@ function calcTarget(p) {
   return t + (p.fitnessGoal==='build_muscle' ? 300 : p.fitnessGoal==='maintain' ? 0 : -500);
 }
 
+// 運動消耗目標：只計算需要靠運動彌補的部分（現實可達）
+// 減脂：每日需靠運動燃燒 400 kcal（配合飲食控制共達 500 赤字）
+// 增肌：每日運動燃燒 300 kcal（促進肌肉生長刺激）
+// 維持：每日運動燃燒 250 kcal（維持基本心肺健康）
+function calcExTarget(p) {
+  if (!calcTDEE(p)) return 0;
+  if (p.fitnessGoal === 'lose_fat') return 400;
+  if (p.fitnessGoal === 'build_muscle') return 300;
+  return 250;
+}
+
 function calcWeeks(p) {
   const c=parseFloat(p.weight), g=parseFloat(p.goalWeight);
   if (!c||!g) return null;
@@ -360,14 +371,15 @@ function renderDashboard() {
   const p = app.profile;
   const t = today();
   const target = calcTarget(p);
+  const exTarget = calcExTarget(p); // 運動消耗目標（現實可達的部分）
   const todayLog = app.workoutLogs.find(l => l.date === t);
   const burned = todayLog ? (todayLog.caloriesBurned||0) : 0;
-  const net = target ? target - burned : 0;
+  const net = exTarget ? Math.max(exTarget - burned, 0) : 0;
   const water = app.waterLogs[t] || 0;
   const lastW = app.weightLogs.length ? app.weightLogs[app.weightLogs.length-1].weight : (p.weight||'--');
   const wkDates = getWeekDates();
   const streak = wkDates.filter(d => app.workoutLogs.some(l => l.date===d && l.exercises.length>0)).length;
-  const burnPct = target ? Math.min(Math.round(burned/target*100), 100) : 0;
+  const burnPct = exTarget ? Math.min(Math.round(burned/exTarget*100), 100) : 0;
 
   // 每天輪換 banner 圖（亞洲運動員）
   const BANNERS = [
@@ -430,10 +442,10 @@ function renderDashboard() {
       <div style="position:absolute;bottom:-30px;right:20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
       <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:0.4rem;">今日已燃燒 Burned</div>
       <div style="font-size:3.2rem;font-weight:900;color:white;line-height:1;letter-spacing:-0.03em;">${burned}<span style="font-size:1.1rem;font-weight:600;margin-left:4px;opacity:0.8;">kcal</span></div>
-      ${target ? `
+      ${exTarget ? `
       <div style="margin-top:1rem;">
         <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:rgba(255,255,255,0.7);margin-bottom:6px;">
-          <span>目標 ${target} kcal</span><span>${burnPct}%</span>
+          <span>今日運動目標 ${exTarget} kcal</span><span>${burnPct}%</span>
         </div>
         <div style="height:6px;background:rgba(255,255,255,0.25);border-radius:999px;">
           <div style="height:6px;background:white;border-radius:999px;width:${burnPct}%;transition:width 0.5s;"></div>
@@ -444,16 +456,16 @@ function renderDashboard() {
     <!-- 三格數字卡 -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.85rem;">
       <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
-        <div class="med-num" style="color:var(--text);">${target||'--'}</div>
-        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">目標 kcal</div>
+        <div class="med-num" style="color:var(--text);">${exTarget||'--'}</div>
+        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">運動目標</div>
       </div>
       <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
         <div class="med-num text-orange-grad">${burned}</div>
         <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">已燃燒</div>
       </div>
       <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
-        <div class="med-num" style="color:${net>0?'#30D158':net<0?'#FF453A':'var(--text)'}">${target?net:'--'}</div>
-        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">剩餘</div>
+        <div class="med-num" style="color:${net===0?'#30D158':'var(--text)'}">${exTarget?net:'--'}</div>
+        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">還差</div>
       </div>
     </div>
 
