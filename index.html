@@ -934,7 +934,7 @@ function renderLog() {
       <!-- 組數輸入 Sets -->
       <div id="setsWrap" style="margin-bottom:0.75rem;"></div>
       <div style="display:flex;gap:0.5rem;">
-        <button onclick="addSet()" class="btn-secondary" style="flex:1;">+ 加一組</button>
+        <button onclick="addSet()" class="btn-secondary" style="flex:1;">${isCardio(_selectedExName) ? '+ 加一段' : '+ 加一組'}</button>
         <button onclick="saveEx()" class="btn-primary" style="flex:1;padding:0.5rem;">💾 儲存</button>
       </div>
     </div>
@@ -954,7 +954,9 @@ function renderLog() {
           </div>
           ${ex.sets.map(s=>`
             <div style="display:flex;gap:0.5rem;font-size:0.75rem;color:#94a3b8;background:#334155;border-radius:0.375rem;padding:4px 8px;margin-bottom:3px;">
-              <span>${s.weight?s.weight+'kg':'自重'} × ${s.reps}下</span>
+              ${ex.cardio
+                ? `<span>⏱ ${s.duration} 分鐘${s.heartRate ? ` · ❤️ ${s.heartRate} BPM` : ''}</span>`
+                : `<span>${s.weight?s.weight+'kg':'自重'} × ${s.reps}下</span>`}
               ${s.notes?`<span style="color:#64748b;">· ${s.notes}</span>`:''}
             </div>`).join('')}
         </div>`).join('')}
@@ -1054,43 +1056,96 @@ function renderExPickerList(q) {
   el.innerHTML = html || '<p style="color:#64748b;text-align:center;padding:1.5rem;">找不到符合運動</p>';
 }
 
-function selectEx(name) { _selectedExName = name; }
+function selectEx(name) {
+  // 切換運動時重置 _sets 到對應格式
+  _selectedExName = name;
+  _sets = isCardio(name) ? [{duration:'', heartRate:'', notes:''}] : [{weight:'', reps:'', notes:''}];
+  renderSets();
+}
+
+// 判斷是否有氧運動
+function isCardio(name) {
+  return EX.cardio.some(e => e.n === name);
+}
 
 function renderSets() {
   const el = document.getElementById('setsWrap');
   if (!el) return;
-  el.innerHTML = _sets.map((s,i) => `
-    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-      <span style="color:#64748b;font-size:0.75rem;min-width:1.25rem;text-align:center;">${i+1}</span>
-      <input type="number" placeholder="重量(kg)" value="${s.weight}" onchange="_sets[${i}].weight=this.value" class="input-field" style="flex:1;text-align:center;">
-      <input type="number" placeholder="次數" value="${s.reps}" onchange="_sets[${i}].reps=this.value" class="input-field" style="flex:1;text-align:center;">
-      <input type="text" placeholder="備註" value="${s.notes||''}" onchange="_sets[${i}].notes=this.value" class="input-field" style="flex:1.5;">
-      ${_sets.length>1?`<button onclick="_sets.splice(${i},1);renderSets()" style="color:#f87171;background:none;border:none;cursor:pointer;padding:0 4px;">✕</button>`:'<div style="width:20px;"></div>'}
-    </div>`).join('');
+  const cardio = isCardio(_selectedExName);
+  if (cardio) {
+    // 有氧：顯示時間 + 心率輸入
+    el.innerHTML = _sets.map((s,i) => `
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <span style="color:#64748b;font-size:0.75rem;min-width:1.25rem;text-align:center;">${i+1}</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
+          <input type="number" placeholder="時間（分鐘）" value="${s.duration}" onchange="_sets[${i}].duration=this.value" class="input-field" style="text-align:center;" min="1">
+          <span style="color:#64748b;font-size:0.6rem;text-align:center;">⏱ 分鐘</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
+          <input type="number" placeholder="心率（BPM）" value="${s.heartRate}" onchange="_sets[${i}].heartRate=this.value" class="input-field" style="text-align:center;" min="50" max="220">
+          <span style="color:#64748b;font-size:0.6rem;text-align:center;">❤️ BPM</span>
+        </div>
+        <input type="text" placeholder="備註" value="${s.notes||''}" onchange="_sets[${i}].notes=this.value" class="input-field" style="flex:1.2;">
+        ${_sets.length>1?`<button onclick="_sets.splice(${i},1);renderSets()" style="color:#f87171;background:none;border:none;cursor:pointer;padding:0 4px;">✕</button>`:'<div style="width:20px;"></div>'}
+      </div>`).join('');
+  } else {
+    // 力量訓練：原本的重量 + 次數
+    el.innerHTML = _sets.map((s,i) => `
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <span style="color:#64748b;font-size:0.75rem;min-width:1.25rem;text-align:center;">${i+1}</span>
+        <input type="number" placeholder="重量(kg)" value="${s.weight}" onchange="_sets[${i}].weight=this.value" class="input-field" style="flex:1;text-align:center;">
+        <input type="number" placeholder="次數" value="${s.reps}" onchange="_sets[${i}].reps=this.value" class="input-field" style="flex:1;text-align:center;">
+        <input type="text" placeholder="備註" value="${s.notes||''}" onchange="_sets[${i}].notes=this.value" class="input-field" style="flex:1.5;">
+        ${_sets.length>1?`<button onclick="_sets.splice(${i},1);renderSets()" style="color:#f87171;background:none;border:none;cursor:pointer;padding:0 4px;">✕</button>`:'<div style="width:20px;"></div>'}
+      </div>`).join('');
+  }
 }
 
-function addSet() { _sets.push({weight:'',reps:'',notes:''}); renderSets(); }
+function addSet() {
+  // 根據運動類型加入對應格式的空白行
+  _sets.push(isCardio(_selectedExName) ? {duration:'', heartRate:'', notes:''} : {weight:'', reps:'', notes:''});
+  renderSets();
+}
 
 function saveEx() {
   const name = _selectedExName;
   if (!name) { alert('請先選擇運動名稱'); return; }
-  const valid = _sets.filter(s => s.reps!=='');
-  if (!valid.length) { alert('請至少輸入一組的次數'); return; }
+  const cardio = isCardio(name);
   const t = _logDate || today();
   let lg = app.workoutLogs.find(l=>l.date===t);
   if (!lg) { lg = {date:t, exercises:[], caloriesBurned:0, duration:0}; app.workoutLogs.push(lg); }
   const exDb = Object.values(EX).flat();
   const info = exDb.find(e=>e.n===name)||{met:5};
   const bw = parseFloat(app.profile.weight)||70;
-  const mins = valid.length * 2;
-  const cal = Math.round(info.met * bw * mins / 60);
-  const existing = lg.exercises.find(e=>e.name===name);
-  if (existing) existing.sets.push(...valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''})));
-  else lg.exercises.push({name, sets: valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''}))});
-  lg.caloriesBurned = (lg.caloriesBurned||0) + cal;
-  lg.duration = (lg.duration||0) + mins;
+
+  if (cardio) {
+    // 有氧：驗證時間欄，用實際運動時間計算卡路里
+    const valid = _sets.filter(s => s.duration!=='' && parseFloat(s.duration)>0);
+    if (!valid.length) { alert('請至少輸入一段的運動時間（分鐘）'); return; }
+    const totalMins = valid.reduce((sum,s) => sum + (parseFloat(s.duration)||0), 0);
+    const cal = Math.round(info.met * bw * totalMins / 60);
+    const existing = lg.exercises.find(e=>e.name===name);
+    const rows = valid.map(s=>({ duration: parseFloat(s.duration)||0, heartRate: parseFloat(s.heartRate)||0, notes: s.notes||'' }));
+    if (existing) existing.sets.push(...rows);
+    else lg.exercises.push({name, cardio:true, sets: rows});
+    lg.caloriesBurned = (lg.caloriesBurned||0) + cal;
+    lg.duration = (lg.duration||0) + totalMins;
+    _sets = [{duration:'', heartRate:'', notes:''}];
+  } else {
+    // 力量訓練：驗證次數欄
+    const valid = _sets.filter(s => s.reps!=='');
+    if (!valid.length) { alert('請至少輸入一組的次數'); return; }
+    const mins = valid.length * 2;
+    const cal = Math.round(info.met * bw * mins / 60);
+    const existing = lg.exercises.find(e=>e.name===name);
+    if (existing) existing.sets.push(...valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''})));
+    else lg.exercises.push({name, sets: valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''}))});
+    lg.caloriesBurned = (lg.caloriesBurned||0) + cal;
+    lg.duration = (lg.duration||0) + mins;
+    _sets = [{weight:'',reps:'',notes:''}];
+  }
+
   saveData();
-  _sets = [{weight:'',reps:'',notes:''}];
   _selectedExName = '';
   renderLog();
 }
