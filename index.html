@@ -380,16 +380,34 @@ function renderDashboard() {
     'https://images.pexels.com/photos/6455927/pexels-photo-6455927.jpeg',
   ];
   const bannerUrl = BANNERS[new Date().getDay()];
-  const quotes = [
-    '每一滴汗水都是進步的證明 💪',
-    '今天的努力，是明天的成果 🔥',
-    '堅持就是勝利 — Keep Going 🏆',
-    '突破極限，超越自我 ⚡',
-    '強大從不舒服的地方開始 💥',
-    '你比你想像的更強 🌟',
-    '休息是為了走更長遠的路 😤',
+
+  // 韋恩今日格言 — 20條，用日期字串做hash，確保同日同一條，過夜自動換
+  const wayneQuotes = [
+    '而家坐住睇呢句，脂肪正在開派對。',
+    '棺材入面係長期躺平，而家唔係時候。',
+    '你老了會後悔兩件事：唔儲錢，同唔練身。',
+    '閻羅王都話：等你練完先嚟。',
+    '你個心臟每日都跳咁多下，你做唔做到十下掌上壓？',
+    '地球引力拉住你，你就係唔肯反抗？',
+    '你係人，唔係梳化嘅附屬品。',
+    '醫生叫你多運動，韋恩叫你聽醫生話。',
+    '你都開得個app，唔爭在去埋健身。',
+    '脂肪好講義氣，你唔趕佢走佢唔會走。',
+    '如果脂肪可以賣錢，你已經財富自由。',
+    '死之前至少要試過有腹肌係咩感覺。',
+    '你嘅心臟一秒都無停過，你連三組都唔做？',
+    '你唔係老，你係生鏽咗，動下就好。',
+    '閻羅王最鍾意收懶人，唔好俾佢輕易搵到你。',
+    '人生無take two，但今日運動你重新開始得。',
+    '你部手機跌落地即刻執，做組深蹲咁快都唔得？',
+    '脂肪唔怕你，因為佢知你唔認真。',
+    '你生得咁出眾，個身形唔配合真係可惜。',
+    '你而家嘅身材，係你過去每個懶覺的總和。',
   ];
-  const quote = quotes[new Date().getDay()];
+  // 用今日日期字串（YYYY-MM-DD）做簡單hash，確保同日同條，午夜後自動換
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dateHash = todayStr.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const quote = wayneQuotes[dateHash % wayneQuotes.length];
 
   document.getElementById('tab-dashboard').innerHTML = `
 
@@ -400,8 +418,9 @@ function renderDashboard() {
         style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;">
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%);"></div>
       <div style="position:absolute;bottom:0;left:0;right:0;padding:1rem 1.1rem;">
-        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:3px;">今日格言</div>
-        <div style="font-size:0.95rem;font-weight:700;color:white;line-height:1.3;">${quote}</div>
+        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:5px;">🔥 韋恩今日格言</div>
+        <div style="font-size:0.95rem;font-weight:700;color:white;line-height:1.4;">${quote}</div>
+        <div style="font-size:0.75rem;font-weight:600;color:rgba(255,180,80,0.9);margin-top:4px;">— 韋恩</div>
       </div>
     </div>
 
