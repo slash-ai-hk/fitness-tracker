@@ -1169,7 +1169,8 @@ function saveEx() {
     // 力量訓練：驗證次數欄
     const valid = _sets.filter(s => s.reps!=='');
     if (!valid.length) { alert('請至少輸入一組的次數'); return; }
-    const mins = valid.length * 2;
+    // 每組估算4分鐘（1分鐘做組 + 約3分鐘休息），更貼近真實健身時間
+    const mins = valid.length * 4;
     const cal = Math.round(info.met * bw * mins / 60);
     const existing = lg.exercises.find(e=>e.name===name);
     if (existing) existing.sets.push(...valid.map(s=>({weight:s.weight||0,reps:s.reps,notes:s.notes||''})));
