@@ -4,60 +4,206 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>健身追蹤器 Fitness Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 基本樣式 */
-    * { box-sizing: border-box; }
-    body { background-color: #0f172a; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', sans-serif; }
+    /* ── Design Tokens ── */
+    :root {
+      --bg:       #0D0D0D;
+      --s1:       #1A1A1A;
+      --s2:       #242424;
+      --s3:       #333333;
+      --orange:   #FF6B00;
+      --orange2:  #FF8C40;
+      --text:     #FFFFFF;
+      --text2:    #AAAAAA;
+      --text3:    #666666;
+      --green:    #30D158;
+      --blue:     #0A84FF;
+      --r-xl:     24px;
+      --r-lg:     18px;
+      --r-md:     14px;
+      --r-sm:     10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang TC', 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
-    input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
-    select option { background-color: #1e293b; }
-    .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
-    .card-title { color: #f97316; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; }
-    .input-field { width: 100%; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; color: white; background-color: #334155; border: 1px solid #475569; }
-    .input-field:focus { outline: none; border-color: #f97316; }
-    .btn-primary { background-color: #f97316; color: white; border-radius: 0.75rem; padding: 0.75rem; font-weight: 700; width: 100%; cursor: pointer; border: none; }
-    .btn-primary:active { background-color: #ea580c; }
-    .btn-secondary { background-color: #334155; color: #94a3b8; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; cursor: pointer; border: none; }
-    .label { color: #94a3b8; font-size: 0.75rem; font-weight: 600; display: block; margin-bottom: 0.25rem; }
+
+    /* 捲軸 */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 2px; }
+
+    /* 通用卡片 */
+    .card {
+      background: var(--s1);
+      border-radius: var(--r-xl);
+      padding: 1.1rem 1.2rem;
+      margin-bottom: 0.85rem;
+    }
+    .card-title {
+      color: var(--text2);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    /* 橙色主要按鈕 */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--orange), var(--orange2));
+      color: white;
+      border-radius: 999px;
+      padding: 0.85rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      width: 100%;
+      cursor: pointer;
+      border: none;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 20px rgba(255,107,0,0.35);
+      transition: opacity 0.15s;
+    }
+    .btn-primary:active { opacity: 0.8; }
+
+    /* 次要按鈕 */
+    .btn-secondary {
+      background: var(--s3);
+      color: var(--text2);
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+    .btn-secondary:active { background: #444; }
+
+    /* 輸入框 */
+    .input-field {
+      width: 100%;
+      border-radius: var(--r-md);
+      padding: 0.65rem 0.9rem;
+      font-size: 0.875rem;
+      color: var(--text);
+      background: var(--s2);
+      border: 1.5px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { outline: none; border-color: var(--orange); }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+    select option { background: var(--s2); }
+
+    /* 標籤 */
+    .label {
+      color: var(--text2);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    /* 橙色標籤 pill */
+    .badge-orange {
+      background: rgba(255,107,0,0.15);
+      color: var(--orange);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    /* 大數字 */
+    .big-num {
+      font-size: 2.8rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+    .med-num {
+      font-size: 1.75rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    /* 橙色漸層文字 */
+    .text-orange-grad {
+      background: linear-gradient(135deg, var(--orange), var(--orange2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* 進度條 */
+    .progress-track {
+      background: var(--s3);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, var(--orange), var(--orange2));
+      border-radius: 999px;
+      transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    }
+
     canvas { max-width: 100%; display: block; }
+
+    /* 底部導航 active pill */
+    .nav-pill {
+      position: absolute;
+      bottom: 6px;
+      width: 4px;
+      height: 4px;
+      background: var(--orange);
+      border-radius: 999px;
+      transition: opacity 0.2s;
+    }
   </style>
 </head>
 <body>
 
-<div id="app" style="max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background-color:#0f172a;">
+<div id="app" style="max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);">
 
-  <!-- 頂部標題 Header -->
-  <header style="background-color:#1e293b; border-bottom:1px solid #334155; padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
-    <h1 style="color:#f97316; font-size:1.125rem; font-weight:700; margin:0;">💪 健身追蹤器</h1>
-    <span id="header-date" style="color:#94a3b8; font-size:0.875rem;"></span>
+  <!-- 頂部標題 -->
+  <header id="main-header" style="padding:1rem 1.25rem 0.75rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;background:var(--bg);">
+    <div>
+      <div style="font-size:0.7rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;" id="header-date"></div>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text);margin-top:1px;" id="header-greeting">健身追蹤器</div>
+    </div>
+    <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FF6B00,#FF8C40);display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 4px 12px rgba(255,107,0,0.4);">💪</div>
   </header>
 
-  <!-- 主要內容 Main Content -->
-  <main style="flex:1; overflow-y:auto; padding:1rem; padding-bottom:5rem;">
+  <!-- 主要內容 -->
+  <main style="flex:1;overflow-y:auto;padding:0.5rem 1.1rem;padding-bottom:5.5rem;">
     <div id="tab-dashboard" class="tab-content active"></div>
     <div id="tab-plan" class="tab-content"></div>
     <div id="tab-log" class="tab-content"></div>
     <div id="tab-profile" class="tab-content"></div>
   </main>
 
-  <!-- 底部導航 Bottom Nav -->
-  <nav style="background-color:#1e293b; border-top:1px solid #334155; position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; display:flex; justify-content:space-around; padding:0.5rem 0; z-index:10;">
-    <button onclick="switchTab('dashboard')" id="nav-dashboard" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
-      <span style="font-size:1.25rem;">🏠</span><span>儀表板</span>
+  <!-- 底部導航 -->
+  <nav style="background:var(--s1);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;justify-content:space-around;padding:0.6rem 0 0.8rem;z-index:10;border-radius:24px 24px 0 0;box-shadow:0 -4px 30px rgba(0,0,0,0.5);">
+    <button onclick="switchTab('dashboard')" id="nav-dashboard" style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 16px;position:relative;transition:color 0.2s;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>儀表板</span>
     </button>
-    <button onclick="switchTab('plan')" id="nav-plan" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
-      <span style="font-size:1.25rem;">📋</span><span>計畫</span>
+    <button onclick="switchTab('plan')" id="nav-plan" style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 16px;position:relative;transition:color 0.2s;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg><span>計畫</span>
     </button>
-    <button onclick="switchTab('log')" id="nav-log" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
-      <span style="font-size:1.25rem;">📝</span><span>記錄</span>
+    <button onclick="switchTab('log')" id="nav-log" style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 16px;position:relative;transition:color 0.2s;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg><span>記錄</span>
     </button>
-    <button onclick="switchTab('profile')" id="nav-profile" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:0.7rem;background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 12px;">
-      <span style="font-size:1.25rem;">👤</span><span>資料</span>
+    <button onclick="switchTab('profile')" id="nav-profile" style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 16px;position:relative;transition:color 0.2s;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-3h4v3h-4zm4-4.5h-4c0-2.21 1.79-4 4-4V7l4 3.5L14 14v-2.5c-1.1 0-2 .9-2 2z"/></svg><span>資料</span>
     </button>
   </nav>
 
@@ -194,9 +340,12 @@ function generatePlan(goal) {
 // =============================================
 function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(el => el.style.color = '#94a3b8');
+  document.querySelectorAll('nav button').forEach(el => {
+    el.style.color = 'var(--text3)';
+  });
   document.getElementById('tab-' + name).classList.add('active');
-  document.getElementById('nav-' + name).style.color = '#f97316';
+  const activeBtn = document.getElementById('nav-' + name);
+  if (activeBtn) activeBtn.style.color = 'var(--orange)';
   app.currentTab = name;
   if (name==='dashboard') renderDashboard();
   else if (name==='plan') renderPlan();
@@ -218,88 +367,88 @@ function renderDashboard() {
   const lastW = app.weightLogs.length ? app.weightLogs[app.weightLogs.length-1].weight : (p.weight||'--');
   const wkDates = getWeekDates();
   const streak = wkDates.filter(d => app.workoutLogs.some(l => l.date===d && l.exercises.length>0)).length;
+  const burnPct = target ? Math.min(Math.round(burned/target*100), 100) : 0;
 
   document.getElementById('tab-dashboard').innerHTML = `
-    <div style="margin-bottom:1rem;">
-      <h2 style="font-size:1.25rem;font-weight:700;color:white;margin:0 0 2px;">${p.name ? '嗨，'+p.name+'！👋' : '歡迎回來！'}</h2>
-      <p style="color:#94a3b8;font-size:0.875rem;margin:0;">${new Date().toLocaleDateString('zh-TW',{weekday:'long',month:'long',day:'numeric'})}</p>
-    </div>
 
-    <!-- 今日摘要 -->
-    <div class="card">
-      <div class="card-title">📊 今日摘要 Today's Summary</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:0.75rem;">
-        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
-          <div style="font-size:1.5rem;font-weight:700;color:white;">${target||'--'}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">目標熱量<br>kcal target</div>
-        </div>
-        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
-          <div style="font-size:1.5rem;font-weight:700;color:#f97316;">${burned}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">已燃燒<br>burned</div>
-        </div>
-        <div style="text-align:center;background:#334155;border-radius:0.5rem;padding:0.5rem;">
-          <div style="font-size:1.5rem;font-weight:700;color:${net>=0?'#4ade80':'#f87171'}">${target?net:'--'}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">淨剩餘<br>remaining</div>
-        </div>
-      </div>
+    <!-- 英雄卡片：燃燒熱量 -->
+    <div style="background:linear-gradient(135deg,#FF6B00,#FF4500);border-radius:var(--r-xl);padding:1.4rem;margin-bottom:0.85rem;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.08);"></div>
+      <div style="position:absolute;bottom:-30px;right:20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:0.4rem;">今日已燃燒 Burned</div>
+      <div style="font-size:3.2rem;font-weight:900;color:white;line-height:1;letter-spacing:-0.03em;">${burned}<span style="font-size:1.1rem;font-weight:600;margin-left:4px;opacity:0.8;">kcal</span></div>
       ${target ? `
-      <div style="margin-top:0.5rem;">
-        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#94a3b8;margin-bottom:4px;">
-          <span>燃燒進度</span><span>${Math.round(Math.min(burned/target*100,100))}%</span>
+      <div style="margin-top:1rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:rgba(255,255,255,0.7);margin-bottom:6px;">
+          <span>目標 ${target} kcal</span><span>${burnPct}%</span>
         </div>
-        <div style="height:8px;background:#334155;border-radius:4px;">
-          <div style="height:8px;background:#f97316;border-radius:4px;width:${Math.min(burned/target*100,100)}%;transition:width 0.3s;"></div>
+        <div style="height:6px;background:rgba(255,255,255,0.25);border-radius:999px;">
+          <div style="height:6px;background:white;border-radius:999px;width:${burnPct}%;transition:width 0.5s;"></div>
         </div>
-      </div>` : `<p style="color:#64748b;font-size:0.75rem;text-align:center;">請先在「資料」頁設定個人資料</p>`}
+      </div>` : `<div style="margin-top:0.75rem;font-size:0.75rem;color:rgba(255,255,255,0.6);">前往「資料」設定個人目標</div>`}
     </div>
 
-    <!-- 飲水追蹤 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-        <div class="card-title" style="margin:0;">💧 今日飲水 Water Intake</div>
-        <span style="color:white;font-weight:700;font-size:0.875rem;">${water}/8 杯</span>
+    <!-- 三格數字卡 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.85rem;">
+      <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
+        <div class="med-num" style="color:var(--text);">${target||'--'}</div>
+        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">目標 kcal</div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem;">
-        ${Array.from({length:8},(_,i)=>`
-          <div style="width:2rem;height:2rem;border-radius:50%;background:${i<water?'#0ea5e9':'#334155'};display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;" onclick="${i<water?'rmWater()':'addWater()'}">💧</div>
-        `).join('')}
+      <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
+        <div class="med-num text-orange-grad">${burned}</div>
+        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">已燃燒</div>
+      </div>
+      <div style="background:var(--s1);border-radius:var(--r-lg);padding:0.9rem 0.6rem;text-align:center;">
+        <div class="med-num" style="color:${net>0?'#30D158':net<0?'#FF453A':'var(--text)'}">${target?net:'--'}</div>
+        <div style="font-size:0.6rem;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;">剩餘</div>
+      </div>
+    </div>
+
+    <!-- 飲水 + 連續 兩欄 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.85rem;">
+
+      <!-- 飲水 -->
+      <div style="background:var(--s1);border-radius:var(--r-xl);padding:1rem;">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:0.6rem;">💧 飲水</div>
+        <div style="font-size:1.9rem;font-weight:900;color:#38BDF8;line-height:1;">${water}<span style="font-size:0.8rem;color:var(--text3);font-weight:600;">/8</span></div>
+        <div style="font-size:0.65rem;color:var(--text3);margin-bottom:0.6rem;">杯 glasses</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.6rem;">
+          ${Array.from({length:8},(_,i)=>`<div onclick="${i<water?'rmWater()':'addWater()'}" style="width:20px;height:20px;border-radius:50%;background:${i<water?'#38BDF8':'var(--s3)'};cursor:pointer;transition:background 0.2s;"></div>`).join('')}
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="addWater()" style="flex:1;padding:5px 0;background:rgba(56,189,248,0.15);color:#38BDF8;border:none;border-radius:999px;font-size:0.7rem;font-weight:700;cursor:pointer;">+1</button>
+          <button onclick="rmWater()" style="flex:1;padding:5px 0;background:var(--s2);color:var(--text3);border:none;border-radius:999px;font-size:0.7rem;font-weight:700;cursor:pointer;">-1</button>
+        </div>
+      </div>
+
+      <!-- 本週連續 -->
+      <div style="background:var(--s1);border-radius:var(--r-xl);padding:1rem;">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:0.6rem;">🔥 本週</div>
+        <div style="font-size:1.9rem;font-weight:900;line-height:1;" class="text-orange-grad">${streak}<span style="font-size:0.8rem;color:var(--text3);font-weight:600;">/7</span></div>
+        <div style="font-size:0.65rem;color:var(--text3);margin-bottom:0.75rem;">天 days</div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+          ${['一','二','三','四','五','六','日'].map((d,i)=>{
+            const dt=wkDates[i];
+            const done=app.workoutLogs.some(l=>l.date===dt&&l.exercises.length>0);
+            const isTd=dt===today();
+            return `<div style="aspect-ratio:1;border-radius:6px;background:${done?'var(--orange)':'var(--s3)'};display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:700;color:${done?'white':'var(--text3)'};${isTd&&!done?'box-shadow:0 0 0 1.5px var(--orange);':''};">${done?'✓':d}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- 體重記錄 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem;">
+        <div>
+          <div class="card-title" style="margin:0;">⚖️ 體重 Weight</div>
+          <div style="font-size:1.6rem;font-weight:800;color:var(--text);margin-top:2px;">${lastW} <span style="font-size:0.875rem;color:var(--text3);font-weight:500;">kg</span></div>
+        </div>
+        ${p.goalWeight ? `<div style="text-align:right;"><div style="font-size:0.65rem;color:var(--text3);">目標</div><div style="font-size:1.1rem;font-weight:700;color:var(--orange);">${p.goalWeight} kg</div></div>` : ''}
       </div>
       <div style="display:flex;gap:0.5rem;">
-        <button onclick="addWater()" style="flex:1;padding:0.5rem;background:#0ea5e9;color:white;border:none;border-radius:0.5rem;font-size:0.875rem;cursor:pointer;">+ 加一杯</button>
-        <button onclick="rmWater()" style="flex:1;padding:0.5rem;background:#334155;color:#94a3b8;border:none;border-radius:0.5rem;font-size:0.875rem;cursor:pointer;">− 減一杯</button>
-      </div>
-    </div>
-
-    <!-- 本週連續 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-        <div class="card-title" style="margin:0;">🔥 本週訓練 Weekly Streak</div>
-        <span style="color:#f97316;font-weight:700;">${streak}/7天</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        ${['一','二','三','四','五','六','日'].map((d,i) => {
-          const dt = wkDates[i];
-          const done = app.workoutLogs.some(l => l.date===dt && l.exercises.length>0);
-          const isTd = dt===today();
-          return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:2rem;height:2rem;border-radius:50%;background:${done?'#f97316':'#334155'};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:${done?'white':'#64748b'};${isTd?'box-shadow:0 0 0 2px #f97316;':''}">
-              ${done?'✓':d}
-            </div>
-            <span style="font-size:0.6rem;color:#64748b;">${d}</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <!-- 體重快速記錄 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-        <div class="card-title" style="margin:0;">⚖️ 體重記錄 Weight Log</div>
-        <span style="color:white;font-weight:700;font-size:0.875rem;">${lastW} kg</span>
-      </div>
-      <div style="display:flex;gap:0.5rem;">
-        <input type="number" id="qw" placeholder="今日體重 kg" step="0.1" class="input-field" style="flex:1;">
-        <button onclick="quickWeight()" style="padding:0.5rem 1rem;background:#f97316;color:white;border:none;border-radius:0.5rem;font-weight:700;cursor:pointer;">記錄</button>
+        <input type="number" id="qw" placeholder="輸入今日體重..." step="0.1" class="input-field" style="flex:1;">
+        <button onclick="quickWeight()" style="padding:0.6rem 1.1rem;background:linear-gradient(135deg,var(--orange),var(--orange2));color:white;border:none;border-radius:999px;font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(255,107,0,0.3);">記錄</button>
       </div>
     </div>
 
@@ -307,11 +456,11 @@ function renderDashboard() {
     ${app.weightLogs.length >= 2 ? `
     <div class="card">
       <div class="card-title">📈 體重趨勢 Weight Trend</div>
-      <canvas id="wChart" height="150"></canvas>
+      <canvas id="wChart" height="140"></canvas>
     </div>` : ''}
   `;
 
-  if (app.weightLogs.length >= 2) drawLineChart('wChart', app.weightLogs.slice(-30), 'weight', '#f97316', 'kg');
+  if (app.weightLogs.length >= 2) drawLineChart('wChart', app.weightLogs.slice(-30), 'weight', '#FF6B00', 'kg');
 }
 
 function addWater() { const t=today(); app.waterLogs[t]=Math.min((app.waterLogs[t]||0)+1,15); saveData(); renderDashboard(); }
@@ -915,25 +1064,25 @@ function renderProfile() {
   document.getElementById('tab-profile').innerHTML = `
     <!-- 健康數據卡片 -->
     ${bmr ? `
-    <div class="card" style="border-color:#f97316;">
+    <div style="background:linear-gradient(135deg,#1A1A1A,#242424);border-radius:var(--r-xl);padding:1.2rem;margin-bottom:0.85rem;border:1px solid rgba(255,107,0,0.2);">
       <div class="card-title">🧮 健康計算結果 Health Stats</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;">
-        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
-          <div style="font-size:1.5rem;font-weight:700;color:white;">${bmr}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">BMR 基礎代謝率<br>kcal/day</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.6rem;">
+        <div style="background:var(--s2);border-radius:var(--r-lg);padding:0.9rem;text-align:center;">
+          <div style="font-size:1.75rem;font-weight:800;color:var(--text);letter-spacing:-0.02em;">${bmr}</div>
+          <div style="font-size:0.6rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">BMR 基礎代謝</div>
         </div>
-        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
-          <div style="font-size:1.5rem;font-weight:700;color:white;">${tdee}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">TDEE 每日消耗<br>kcal/day</div>
+        <div style="background:var(--s2);border-radius:var(--r-lg);padding:0.9rem;text-align:center;">
+          <div style="font-size:1.75rem;font-weight:800;color:var(--text);letter-spacing:-0.02em;">${tdee}</div>
+          <div style="font-size:0.6rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">TDEE 每日消耗</div>
         </div>
-        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
-          <div style="font-size:1.5rem;font-weight:700;color:#f97316;">${target}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">目標熱量<br>kcal/day</div>
+        <div style="background:linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,140,64,0.1));border-radius:var(--r-lg);padding:0.9rem;text-align:center;border:1px solid rgba(255,107,0,0.2);">
+          <div style="font-size:1.75rem;font-weight:800;letter-spacing:-0.02em;" class="text-orange-grad">${target}</div>
+          <div style="font-size:0.6rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">目標熱量</div>
         </div>
         ${wks!==null?`
-        <div style="background:#334155;border-radius:0.5rem;padding:0.75rem;text-align:center;">
-          <div style="font-size:1.5rem;font-weight:700;color:#4ade80;">${wks}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;">預估達標週數<br>weeks to goal</div>
+        <div style="background:linear-gradient(135deg,rgba(48,209,88,0.12),rgba(48,209,88,0.06));border-radius:var(--r-lg);padding:0.9rem;text-align:center;border:1px solid rgba(48,209,88,0.2);">
+          <div style="font-size:1.75rem;font-weight:800;color:#30D158;letter-spacing:-0.02em;">${wks}</div>
+          <div style="font-size:0.6rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">預估達標週數</div>
         </div>`:''}
       </div>
     </div>` : ''}
@@ -1044,13 +1193,19 @@ function clearData() {
 // 初始化 Init
 // =============================================
 function init() {
-  // 設置頁頭日期
+  // 頁頭日期與問候
   const d = new Date();
-  document.getElementById('header-date').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+  const dateEl = document.getElementById('header-date');
+  const greetEl = document.getElementById('header-greeting');
+  if (dateEl) dateEl.textContent = d.toLocaleDateString('zh-TW',{weekday:'long',month:'long',day:'numeric'});
+  const name = app.profile.name;
+  const hr = d.getHours();
+  const greet = hr < 12 ? '早安' : hr < 18 ? '午安' : '晚安';
+  if (greetEl) greetEl.textContent = name ? `${greet}，${name} 👋` : '健身追蹤器 💪';
 
   // 啟動預設 tab
   const start = app.currentTab || 'dashboard';
-  document.getElementById('nav-'+start).style.color = '#f97316';
+  document.getElementById('nav-'+start).style.color = 'var(--orange)';
   document.getElementById('tab-'+start).classList.add('active');
   if (start==='dashboard') renderDashboard();
   else if (start==='plan') renderPlan();
