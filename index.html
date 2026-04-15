@@ -282,7 +282,7 @@ function calcWeeks(p) {
 const EX = {
   chest:    [{n:'臥推 Bench Press',met:5},{n:'上斜臥推 Incline Press',met:5},{n:'啞鈴飛鳥 DB Fly',met:5},{n:'伏地挺身 Push-up',met:8,bw:true},{n:'雙槓撐體 Dips',met:7,bw:true}],
   back:     [{n:'引體向上 Pull-up',met:8,bw:true},{n:'槓鈴划船 BB Row',met:5},{n:'坐姿划船 Seated Row',met:5},{n:'硬舉 Deadlift',met:6},{n:'滑輪下拉 Lat Pulldown',met:5}],
-  legs:     [{n:'深蹲 Squat',met:6},{n:'腿推 Leg Press',met:5},{n:'弓步 Lunges',met:5},{n:'腿彎舉 Leg Curl',met:5},{n:'羅馬尼亞硬舉 RDL',met:5},{n:'小腿提踵 Calf Raise',met:4}],
+  legs:     [{n:'深蹲 Squat',met:6},{n:'腿推 Leg Press',met:5},{n:'弓步 Lunges',met:5},{n:'腿彎舉 Leg Curl',met:5},{n:'腿伸展 Leg Extension',met:4},{n:'羅馬尼亞硬舉 RDL',met:5},{n:'小腿提踵 Calf Raise',met:4}],
   shoulders:[{n:'肩推 Shoulder Press',met:5},{n:'側平舉 Lateral Raise',met:4},{n:'前平舉 Front Raise',met:4},{n:'面拉 Face Pull',met:4},{n:'啞鈴肩推 DB Press',met:5}],
   arms:     [{n:'二頭彎舉 Bicep Curl',met:4},{n:'鎚式彎舉 Hammer Curl',met:4},{n:'集中彎舉 Concentration Curl',met:4},{n:'繩索下壓 Tricep Pushdown',met:4},{n:'三頭撐體 Tricep Dip',met:5,bw:true}],
   core:     [{n:'捲腹 Crunch',met:4,bw:true},{n:'棒式 Plank',met:4,bw:true},{n:'俄羅斯轉體 Russian Twist',met:4,bw:true},{n:'腿舉 Leg Raise',met:4,bw:true},{n:'登山式 Mountain Climber',met:8,bw:true}],
@@ -931,10 +931,21 @@ function renderLog() {
         </button>
       </div>
 
+      <!-- 組數快選 Set Count Picker -->
+      <div style="margin-bottom:0.75rem;">
+        <label class="label">${isCardio(_selectedExName) ? '段數' : '組數'} Set Count</label>
+        <div style="display:flex;gap:6px;">
+          ${[1,2,3,4,5,6].map(n => `
+            <button onclick="setSetCount(${n})"
+              style="flex:1;padding:0.45rem 0;border-radius:0.5rem;border:1px solid ${_sets.length===n?'#f97316':'#334155'};background:${_sets.length===n?'rgba(249,115,22,0.15)':'#1e293b'};color:${_sets.length===n?'#f97316':'#94a3b8'};font-weight:700;font-size:0.9rem;cursor:pointer;">
+              ${n}
+            </button>`).join('')}
+        </div>
+      </div>
+
       <!-- 組數輸入 Sets -->
       <div id="setsWrap" style="margin-bottom:0.75rem;"></div>
       <div style="display:flex;gap:0.5rem;">
-        <button onclick="addSet()" class="btn-secondary" style="flex:1;">${isCardio(_selectedExName) ? '+ 加一段' : '+ 加一組'}</button>
         <button onclick="saveEx()" class="btn-primary" style="flex:1;padding:0.5rem;">💾 儲存</button>
       </div>
     </div>
@@ -1105,6 +1116,17 @@ function addSet() {
   // 根據運動類型加入對應格式的空白行
   _sets.push(isCardio(_selectedExName) ? {duration:'', heartRate:'', notes:''} : {weight:'', reps:'', notes:''});
   renderSets();
+}
+
+// 快速設定組數：調整 _sets 長度，保留已填的數值，新增行複製第一行的重量/時間
+function setSetCount(n) {
+  const cardio = isCardio(_selectedExName);
+  const template = cardio
+    ? { duration: _sets[0]?.duration||'', heartRate: _sets[0]?.heartRate||'', notes:'' }
+    : { weight: _sets[0]?.weight||'', reps: _sets[0]?.reps||'', notes:'' };
+  while (_sets.length < n) _sets.push({...template});
+  if (_sets.length > n) _sets = _sets.slice(0, n);
+  renderLog(); // 重新渲染令組數按鈕高亮更新
 }
 
 function saveEx() {
