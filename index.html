@@ -86,6 +86,8 @@ let app = loadData();
 
 // 暫存當前記錄的組數
 let _sets = [{ weight:'', reps:'', notes:'' }];
+let _logDate = '';         // 當前記錄日期（空=今天）
+let _selectedExName = '';  // 當前選擇的運動名稱
 
 // =============================================
 // 工具函數 Utilities
@@ -453,7 +455,8 @@ function regenPlan() {
 
 function preloadEx(name, weight) {
   _sets = [{weight: weight||'', reps:'', notes:''}];
-  window._preloadName = name;
+  _selectedExName = name;
+  _logDate = today();
   switchTab('log');
 }
 
@@ -461,37 +464,56 @@ function preloadEx(name, weight) {
 // 運動記錄 Log
 // =============================================
 function renderLog() {
-  const t = today();
-  const todayLog = app.workoutLogs.find(l => l.date===t);
-  const allNames = Object.values(EX).flat().map(e => e.n);
+  if (!_logDate) _logDate = today();
+  const t = _logDate;
+  const dayLog = app.workoutLogs.find(l => l.date===t);
   const loggedNames = getLoggedExNames();
   const preload = window._preloadName || '';
-  if (preload) window._preloadName = '';
+  if (preload) { _selectedExName = preload; window._preloadName = ''; }
 
   document.getElementById('tab-log').innerHTML = `
     <!-- 記錄新運動 -->
     <div class="card">
       <div class="card-title">📝 記錄訓練 Log Workout</div>
+
+      <!-- 日期選擇器 Date Picker -->
+      <div style="margin-bottom:0.75rem;">
+        <label class="label">記錄日期 Date</label>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <button onclick="shiftLogDate(-1)" style="background:#334155;color:white;border:none;border-radius:0.5rem;width:2.5rem;height:2.5rem;font-size:1.25rem;cursor:pointer;flex-shrink:0;">‹</button>
+          <input type="date" id="logDateInput" value="${t}" max="${today()}"
+            onchange="_logDate=this.value;_selectedExName='';renderLog()"
+            class="input-field" style="flex:1;text-align:center;padding:0.5rem;">
+          <button onclick="shiftLogDate(1)" ${t>=today()?'disabled':''} style="background:${t>=today()?'#1e293b':'#334155'};color:${t>=today()?'#475569':'white'};border:none;border-radius:0.5rem;width:2.5rem;height:2.5rem;font-size:1.25rem;cursor:${t>=today()?'default':'pointer'};flex-shrink:0;">›</button>
+        </div>
+        ${t !== today() ? `<div style="text-align:center;margin-top:4px;font-size:0.7rem;color:#f97316;">📅 補登過去記錄 Back-logging</div>` : ''}
+      </div>
+
+      <!-- 運動選擇按鈕 Exercise Picker -->
       <div style="margin-bottom:0.75rem;">
         <label class="label">運動名稱 Exercise</label>
-        <input type="text" id="exName" list="exList" placeholder="輸入或選擇運動..." value="${preload}" class="input-field">
-        <datalist id="exList">${allNames.map(n=>`<option value="${n}">`).join('')}</datalist>
+        <button onclick="openExPicker()" style="width:100%;background:#334155;border:1px solid #475569;border-radius:0.5rem;padding:0.65rem 0.75rem;color:${_selectedExName?'white':'#64748b'};text-align:left;cursor:pointer;font-size:0.875rem;display:flex;justify-content:space-between;align-items:center;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_selectedExName || '點擊選擇運動 Tap to choose...'}</span>
+          <span style="color:#f97316;flex-shrink:0;margin-left:0.5rem;">▼ 選擇</span>
+        </button>
       </div>
+
+      <!-- 組數輸入 Sets -->
       <div id="setsWrap" style="margin-bottom:0.75rem;"></div>
       <div style="display:flex;gap:0.5rem;">
         <button onclick="addSet()" class="btn-secondary" style="flex:1;">+ 加一組</button>
-        <button onclick="saveEx()" class="btn-primary" style="flex:1;padding:0.5rem;">💾 儲存運動</button>
+        <button onclick="saveEx()" class="btn-primary" style="flex:1;padding:0.5rem;">💾 儲存</button>
       </div>
     </div>
 
-    <!-- 今日已記錄 -->
-    ${todayLog && todayLog.exercises.length ? `
+    <!-- 選定日期的記錄 Log for Selected Date -->
+    ${dayLog && dayLog.exercises.length ? `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-        <div class="card-title" style="margin:0;">✅ 今日完成 Done Today</div>
-        <span style="color:#f97316;font-size:0.875rem;">🔥 ${todayLog.caloriesBurned||0} kcal</span>
+        <div class="card-title" style="margin:0;">${t===today()?'✅ 今日完成':'📋 該日記錄'}</div>
+        <span style="color:#f97316;font-size:0.875rem;">🔥 ${dayLog.caloriesBurned||0} kcal</span>
       </div>
-      ${todayLog.exercises.map((ex,i) => `
+      ${dayLog.exercises.map((ex,i) => `
         <div style="margin-bottom:0.75rem;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="color:white;font-size:0.875rem;font-weight:600;">${ex.name}</span>
@@ -503,7 +525,10 @@ function renderLog() {
               ${s.notes?`<span style="color:#64748b;">· ${s.notes}</span>`:''}
             </div>`).join('')}
         </div>`).join('')}
-    </div>` : ''}
+    </div>` : `
+    <div class="card" style="text-align:center;border-style:dashed;border-color:#334155;">
+      <p style="color:#64748b;font-size:0.875rem;margin:0.25rem 0;">此日暫無記錄 · No log for ${t}</p>
+    </div>`}
 
     <!-- 歷史記錄 -->
     <div class="card">
@@ -521,10 +546,82 @@ function renderLog() {
       </select>
       <canvas id="exChart" height="150"></canvas>` : `<p style="color:#64748b;font-size:0.875rem;text-align:center;">尚無足夠數據</p>`}
     </div>
+
+    <!-- 運動選擇器底部彈窗 Exercise Picker Modal -->
+    <div id="exPickerModal" onclick="if(event.target===this)closeExPicker()"
+      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center;">
+      <div style="background:#1e293b;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;padding:1rem 1rem 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+          <h3 style="color:white;font-weight:700;margin:0;font-size:1rem;">選擇運動 Select Exercise</h3>
+          <button onclick="closeExPicker()" style="background:#334155;border:none;color:#94a3b8;width:2rem;height:2rem;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <input type="text" id="exSearch" placeholder="🔍 搜尋運動..." oninput="filterExPicker(this.value)"
+          class="input-field" style="margin-bottom:0.75rem;font-size:1rem;">
+        <div id="exPickerList" style="overflow-y:auto;flex:1;padding-bottom:1.5rem;"></div>
+      </div>
+    </div>
   `;
 
   renderSets();
+  renderExPickerList('');
 }
+
+// 往前/往後切換日期
+function shiftLogDate(delta) {
+  const d = new Date((_logDate||today()) + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const next = d.toISOString().split('T')[0];
+  if (next <= today()) { _logDate = next; _selectedExName = ''; renderLog(); }
+}
+
+// 運動選擇器：分類展示
+const EX_CATS = {
+  '胸 Chest': EX.chest, '背 Back': EX.back, '腿 Legs': EX.legs,
+  '肩 Shoulders': EX.shoulders, '手臂 Arms': EX.arms,
+  '核心 Core': EX.core, '有氧 Cardio': EX.cardio
+};
+
+function openExPicker() {
+  const m = document.getElementById('exPickerModal');
+  m.style.display = 'flex';
+  document.getElementById('exSearch').value = '';
+  renderExPickerList('');
+  setTimeout(() => document.getElementById('exSearch').focus(), 150);
+}
+
+function closeExPicker() {
+  document.getElementById('exPickerModal').style.display = 'none';
+  // 重新渲染按鈕文字
+  const btn = document.querySelector('#tab-log button[onclick="openExPicker()"]');
+  if (btn) {
+    btn.children[0].textContent = _selectedExName || '點擊選擇運動 Tap to choose...';
+    btn.children[0].style.color = _selectedExName ? 'white' : '#64748b';
+  }
+}
+
+function filterExPicker(q) { renderExPickerList(q.toLowerCase()); }
+
+function renderExPickerList(q) {
+  const el = document.getElementById('exPickerList');
+  if (!el) return;
+  let html = '';
+  Object.entries(EX_CATS).forEach(([cat, exs]) => {
+    const list = exs.filter(e => !q || e.n.toLowerCase().includes(q));
+    if (!list.length) return;
+    html += `<div style="color:#f97316;font-size:0.7rem;font-weight:700;padding:0.6rem 0.25rem 0.25rem;letter-spacing:0.05em;">${cat}</div>`;
+    list.forEach(e => {
+      const sel = _selectedExName === e.n;
+      html += `<button onclick="selectEx('${e.n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'); closeExPicker()"
+        style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;background:${sel?'#334155':'transparent'};border:none;border-radius:0.5rem;padding:0.65rem 0.75rem;color:${sel?'#f97316':'#cbd5e1'};cursor:pointer;font-size:0.9rem;margin-bottom:2px;">
+        <span>${e.n}</span>
+        <span style="font-size:0.65rem;color:#64748b;flex-shrink:0;margin-left:0.5rem;">${e.bw?'自重':'重量'}</span>
+      </button>`;
+    });
+  });
+  el.innerHTML = html || '<p style="color:#64748b;text-align:center;padding:1.5rem;">找不到符合運動</p>';
+}
+
+function selectEx(name) { _selectedExName = name; }
 
 function renderSets() {
   const el = document.getElementById('setsWrap');
@@ -542,11 +639,11 @@ function renderSets() {
 function addSet() { _sets.push({weight:'',reps:'',notes:''}); renderSets(); }
 
 function saveEx() {
-  const name = document.getElementById('exName').value.trim();
-  if (!name) { alert('請輸入運動名稱'); return; }
+  const name = _selectedExName;
+  if (!name) { alert('請先選擇運動名稱'); return; }
   const valid = _sets.filter(s => s.reps!=='');
   if (!valid.length) { alert('請至少輸入一組的次數'); return; }
-  const t = today();
+  const t = _logDate || today();
   let lg = app.workoutLogs.find(l=>l.date===t);
   if (!lg) { lg = {date:t, exercises:[], caloriesBurned:0, duration:0}; app.workoutLogs.push(lg); }
   const exDb = Object.values(EX).flat();
@@ -561,11 +658,12 @@ function saveEx() {
   lg.duration = (lg.duration||0) + mins;
   saveData();
   _sets = [{weight:'',reps:'',notes:''}];
+  _selectedExName = '';
   renderLog();
 }
 
 function delEx(i) {
-  const t = today();
+  const t = _logDate || today();
   const lg = app.workoutLogs.find(l=>l.date===t);
   if (!lg) return;
   lg.exercises.splice(i,1);
